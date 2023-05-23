@@ -1,4 +1,4 @@
-module bard-go
+module github.com/ganeshk312/bard-go
 
 go 1.19
 
