@@ -31,6 +31,7 @@ func getHeader() http.Header {
 	}
 }
 
+//NewChatbot() function returns a chatbot client which can be used to ask questions.
 func NewChatbot(sessionID string) (*Chatbot, error) {
 
 	client := &http.Client{
@@ -82,10 +83,10 @@ func (c *Chatbot) getSNlM0e() (string, error) {
 	if len(match) < 2 {
 		return "", fmt.Errorf("Init failed, SNlM0e not found")
 	}
-	// return "AFuTz6sM_HRJNfl9gxy7VknnKPuC:1684396254403", nil
 	return match[1], nil
 }
 
+//Ask() function takes the message string and returns Bard response of type bard.Response
 func (c *Chatbot) Ask(message string) (*Response, error) {
 	params := url.Values{
 		"bl":     {"boq_assistant-bard-web-server_20230514.20_p0"},
