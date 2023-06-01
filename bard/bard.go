@@ -20,8 +20,8 @@ const Origin_url = "https://" + HOST
 const BASE_URL = "https://" + HOST + "/"
 const ASK_URL = BASE_URL + "_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate"
 
-func NewChatbot(sessionID string) *Chatbot {
-	headers := http.Header{
+func getHeader() http.Header {
+	return http.Header{
 		"Host":          []string{HOST},
 		"X-Same-Domain": []string{"1"},
 		"User-Agent":    []string{"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"},
@@ -29,34 +29,37 @@ func NewChatbot(sessionID string) *Chatbot {
 		"Origin":        []string{Origin_url},
 		"Referer":       []string{BASE_URL},
 	}
+}
+
+func NewChatbot(sessionID string) (*Chatbot, error) {
 
 	client := &http.Client{
 		Timeout: 100 * time.Second,
 	}
 	client.Jar, _ = cookiejar.New(nil)
 	chatBot := &Chatbot{
-		headers:        headers,
-		reqID:          rand.Intn(100000),
+		ReqID:          rand.Intn(100000),
 		SNlM0e:         "",
-		conversationID: "",
-		responseID:     "",
-		choiceID:       "",
-		client:         client,
-		sessionid:      sessionID,
+		ConversationID: "",
+		ResponseID:     "",
+		ChoiceID:       "",
+		Client:         client,
+		Sessionid:      sessionID,
 	}
-	chatBot.setCookie(sessionID)
-	chatBot.SNlM0e, _ = chatBot.getSNlM0e()
-	return chatBot
+	chatBot.setCookie()
+	sNlM0e, err := chatBot.getSNlM0e()
+	chatBot.SNlM0e = sNlM0e
+	return chatBot, err
 }
 
-func (chatBot *Chatbot) setCookie(sessionID string) {
+func (chatBot *Chatbot) setCookie() {
 	url, _ := url.Parse(BASE_URL)
-	cookie := &http.Cookie{Name: "__Secure-1PSID", Value: sessionID}
-	chatBot.client.Jar.SetCookies(url, []*http.Cookie{cookie})
+	cookie := &http.Cookie{Name: "__Secure-1PSID", Value: chatBot.Sessionid}
+	chatBot.Client.Jar.SetCookies(url, []*http.Cookie{cookie})
 }
 
 func (c *Chatbot) getSNlM0e() (string, error) {
-	resp, err := c.client.Get(BASE_URL)
+	resp, err := c.Client.Get(BASE_URL)
 	if err != nil {
 		return "", err
 	}
@@ -77,7 +80,7 @@ func (c *Chatbot) getSNlM0e() (string, error) {
 	re := regexp.MustCompile(`SNlM0e":"(.*?)"`)
 	match := re.FindStringSubmatch(bodyString)
 	if len(match) < 2 {
-		return "", fmt.Errorf("SNlM0e not found")
+		return "", fmt.Errorf("Init failed, SNlM0e not found")
 	}
 	// return "AFuTz6sM_HRJNfl9gxy7VknnKPuC:1684396254403", nil
 	return match[1], nil
@@ -86,19 +89,17 @@ func (c *Chatbot) getSNlM0e() (string, error) {
 func (c *Chatbot) Ask(message string) (*Response, error) {
 	params := url.Values{
 		"bl":     {"boq_assistant-bard-web-server_20230514.20_p0"},
-		"_reqid": {fmt.Sprintf("%d", c.reqID)},
+		"_reqid": {fmt.Sprintf("%d", c.ReqID)},
 		"rt":     {"c"},
 	}
 	data := url.Values{
-		"f.req": []string{fmt.Sprintf(`[null, "[[\"%s\"], null, [\"%s\", \"%s\", \"%s\"]]"]`, message, c.conversationID, c.responseID, c.choiceID)},
+		"f.req": []string{fmt.Sprintf(`[null,"[[\"%s\"], null, [\"%s\",\"%s\",\"%s\"]]"]`, message, c.ConversationID, c.ResponseID, c.ChoiceID)},
 		"at":    []string{c.SNlM0e},
 	}
-	log.Println(data)
 	url := ASK_URL + "?" + params.Encode()
 	req, _ := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
-	req.Header = c.headers
-	c.setCookie(c.sessionid)
-	resp, err := c.client.Do(req)
+	req.Header = getHeader()
+	resp, err := c.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -112,19 +113,15 @@ func (c *Chatbot) Ask(message string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println(jsonChatData[0])
 	jsonChatData = jsonChatData[0].([]interface{})
-	log.Println(jsonChatData[2])
 	jsonChat := jsonChatData[2].(string)
-	log.Println(jsonChat)
 	err = json.Unmarshal(json.RawMessage(jsonChat), &jsonChatData)
 	if err != nil {
 		return nil, err
 	}
-	log.Println(jsonChatData)
-	var choices []Choice
-	for _, item := range jsonChatData[4].([]interface{}) {
-		choices = append(choices, Choice{ID: item.([]interface{})[0].(string), Content: item.([]interface{})[1].([]interface{})[0].(string)})
+	choices := make([]Choice, 3)
+	for i, item := range jsonChatData[4].([]interface{}) {
+		choices[i] = Choice{ID: item.([]interface{})[0].(string), Content: item.([]interface{})[1].([]interface{})[0].(string)}
 	}
 	results := &Response{
 		Content:           jsonChatData[0].([]interface{})[0].(string),
@@ -134,10 +131,10 @@ func (c *Chatbot) Ask(message string) (*Response, error) {
 		TextQuery:         jsonChatData[2].([]interface{})[0].([]interface{})[0].(string),
 		Choices:           choices,
 	}
-	c.conversationID = results.ConversationID
-	c.responseID = results.ResponseID
-	c.choiceID = results.Choices[0].ID
-	c.reqID += 100000
+	c.ConversationID = results.ConversationID
+	c.ResponseID = results.ResponseID
+	c.ChoiceID = results.Choices[0].ID
+	c.ReqID += 100000
 	return results, nil
 
 }

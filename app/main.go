@@ -1,11 +1,12 @@
 package main
 
 import (
-	"bard-go/bard"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/ganeshk312/bard-go/bard"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,7 +41,7 @@ func ask(c *gin.Context) {
 
 	// Execute your code without authenticating the resource
 	if !initBool {
-		chatbot = bard.NewChatbot(sessionID)
+		chatbot, _ = bard.NewChatbot(sessionID)
 		initBool = true
 	}
 	fmt.Printf("chatbot %+v", chatbot)

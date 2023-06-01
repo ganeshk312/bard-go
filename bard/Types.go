@@ -3,14 +3,13 @@ package bard
 import "net/http"
 
 type Chatbot struct {
-	headers        http.Header
-	reqID          int
+	ReqID          int
 	SNlM0e         string
-	conversationID string
-	responseID     string
-	choiceID       string
-	client         *http.Client
-	sessionid      string
+	ConversationID string
+	ResponseID     string
+	ChoiceID       string
+	Client         *http.Client
+	Sessionid      string
 }
 
 type Response struct {
