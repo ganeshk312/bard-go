@@ -19,7 +19,7 @@ import "github.com/ganeshk312/bard-go/bard"
 
 to your code, and then `go [build|run|test]` will automatically fetch the necessary dependencies.
 
-Otherwise, run the following Go command to install the `gin` package:
+Otherwise, run the following Go command to install the `bard-go` package:
 
 ```sh
 $ go get -u github.com/ganeshk312/bard-go/bard
